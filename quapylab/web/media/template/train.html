@@ -1,0 +1,180 @@
+<%inherit file="basewithmenu.html" />
+<%block name="head">
+${parent.head()}
+<script type="text/javascript">
+    update_interval=5000
+    last_update = 0
+    page_size = 20;
+    maxpage = 1
+
+    function timed_update() {
+        if(Date.now()-last_update>update_interval)
+            update();
+        setTimeout(timed_update,update_interval);
+    }
+
+    async function update() {
+        last_update = Date.now();
+    }
+
+    function groupcheck(group) {
+        var checked = $('#chkdatasetgroup'+group).is(':checked');
+        % for group in db.get_dataset_names():
+        if(group=='${group.replace(' ','_').replace(' ','_')}') {
+            % for dataset in db.get_dataset_names()[group]:
+            $('#chkdataset${group.replace('.','_').replace(' ','_')}_${dataset.replace('.','_').replace(' ','_')}').attr('checked', checked);
+            % endfor
+        }
+        % endfor
+    }
+
+    function checkall(group) {
+        var checked = $('#'+group).is(':checked');
+        $("input[id^='"+group+"'").attr('checked', checked);
+    }
+
+    $( document ).ready(function() {
+
+        $('#chkdatasethp').attr('checked', true);
+
+        $('#chkaggregativeCC').attr('checked', true);
+
+        $('#chkclassificationLogisticRegressionCV').attr('checked', true);
+
+        $('#chkcalibratorPlattScaling').attr('checked', true);
+
+        $('#chkprotocolAPP').attr('checked', true);
+
+        timed_update();
+    });
+</script>
+</%block>
+
+<%block name="menu2">
+</%block>
+
+<section class="w3-panel">
+    <div class="w3-card">
+        <div class="w3-container w3-theme">
+            <h4>Train quantifiers</h4>
+        </div>
+        <form action="run_training">
+            <div class="w3-container">
+               <div class="w3-section">
+                    Datasets:
+                    <div class="w3-container w3-border">
+                        <div class="w3-section">
+                            % for group in db.get_dataset_names():
+                            <input type="checkbox" class="w3-radio" id="chkdatasetgroup${group.replace('.','_').replace(' ','_')}" value="${group}" hidden onclick="groupcheck('${group.replace('.','_').replace(' ','_')}')">
+                            <label for="chkdatasetgroup${group.replace('.','_').replace(' ','_')}"><i>${group}</i></label>
+                            <div class="w3-container">
+                                % for dataset in db.get_dataset_names()[group]:
+                                <input type="checkbox" class="w3-radio" name="dataset" id="chkdataset${group.replace('.','_').replace(' ','_')}_${dataset.replace('.','_').replace(' ','_')}" value="${group}:${dataset}">
+                                <label for="chkdataset${group.replace('.','_').replace(' ','_')}_${dataset.replace('.','_').replace(' ','_')}">${dataset}</label>
+                                % endfor
+                            </div>
+                            % endfor
+                        </div>
+                    </div>
+                </div>
+               <div class="w3-section">
+                   Quantification algorithms:
+                    <div class="w3-container w3-border">
+                        <div class="w3-section">
+                            <input type="checkbox" class="w3-radio" id="chkaggregative" hidden onclick="checkall('chkaggregative')">
+                            <label for="chkaggregative"><i>Aggregative:</i></label>
+                            <div class="w3-container">
+                                % for algorithm in db.get_aggregative_algorithm_names():
+                                <input type="checkbox" class="w3-radio" name="quantifier" id="chkaggregative${algorithm}" value="${algorithm}">
+                                <label for="chkaggregative${algorithm}">${algorithm}</label>
+                                % endfor
+                            </div>
+                            <div class="w3-container">
+                                <div class="w3-section">
+                                    <input type="checkbox" class="w3-radio" id="chkclassification" hidden onclick="checkall('chkclassification')">
+                                    <label for="chkclassification"><i>Classification algorithm:</i></label>
+                                    <div class="w3-container">
+                                        % for algorithm in db.get_classification_algorithm_names():
+                                        <input type="checkbox" class="w3-radio" name="classifier" id="chkclassification${algorithm}" value="${algorithm}">
+                                        <label for="chkclassification${algorithm}">${algorithm}</label>
+                                        % endfor
+                                    </div>
+                                </div>
+                                <div class="w3-section">
+                                    <input type="checkbox" class="w3-radio" id="chkcalib" hidden onclick="checkall('chkcalib')">
+                                    <label for="chkcalib"><i>Calibration of classifier:</i></label>
+                                    <div class="w3-container">
+                                        <input type="checkbox" class="w3-radio" name="calibration" id="chkcalibNone" value="None" checked>
+                                        <label for="chkcalibNone">${SKIP_NAME}</label>
+                                        % for algorithm in db.get_calibration_algorithm_names():
+                                        <input type="checkbox" class="w3-radio" name="calibration" id="chkcalib${algorithm}" value="${algorithm}">
+                                        <label for="chkcalib${algorithm}">${algorithm}</label>
+                                        % endfor
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="w3-section">
+                            <input type="checkbox" class="w3-radio" id="chknonaggregative" hidden onclick="checkall('chknonaggregative')">
+                            <label for="chknonaggregative"><i>Non-aggregative:</i></label>
+                            <div class="w3-container">
+                                % for algorithm in db.get_non_aggregative_algorithm_names():
+                                <input type="checkbox" class="w3-radio" name="quantifier" id="chknonaggregative${algorithm}" value="${algorithm}">
+                                <label for="chknonaggregative${algorithm}">${algorithm}</label>
+                                % endfor
+                            </div>
+                        </div>
+                        <div class="w3-section">
+                            <input type="checkbox" class="w3-radio" id="chkmeta" hidden onclick="checkall('chkmeta')">
+                            <label for="chkmeta"><i>Meta-algorithm:</i></label> (the meta algorithm will use each selected quantification algorithm as the base algorithm)
+                            <div class="w3-container">
+                                <input type="checkbox" class="w3-radio" name="metaquatifier" id="chkmetaNone" value="None" checked>
+                                <label for="chkmetaNone">${SKIP_NAME}</label>
+                                % for algorithm in db.get_meta_algorithm_names():
+                                <input type="checkbox" class="w3-radio" name="metaquatifier" id="chkmeta${algorithm}" value="${algorithm}">
+                                <label for="chkmeta${algorithm}">${algorithm}</label>
+                                % endfor
+                            </div>
+                        </div>
+                    </div>
+                </div>
+               <div class="w3-section">
+                   Model Selection:
+                    <div class="w3-container w3-border">
+                        <div class="w3-section">
+                            <input type="checkbox" class="w3-radio" name="selection" id="chkselectionNone" value="None" checked>
+                            <label for="chkselectionNone">${SKIP_NAME}</label>
+                            <input type="checkbox" class="w3-radio" name="selection" id="chkselectiongrid" value="Grid">
+                            <label for="chkselectiongrid">Grid search</label>
+                            <div class="w3-section">
+                                <input type="checkbox" class="w3-radio" id="chkprotocol" hidden onclick="checkall('chkprotocol')">
+                                <label for="chkprotocol"><i>Sampling protocol:</i></label>
+                                <div class="w3-container">
+                                    % for protocol in db.get_sampling_protocol_names():
+                                    <input type="checkbox" class="w3-radio" name="protocol" id="chkprotocol${protocol}" value="${protocol}">
+                                    <label for="chkprotocol${protocol}">${protocol}</label>
+                                    % endfor
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+               <div class="w3-section">
+                   <%
+                   import datetime
+                   time = str(datetime.datetime.now())
+                   time = time[:time.rfind('.')]
+                   time = time.replace(' ','_')
+                   time = time.replace(':','-')
+                   %>
+                    <label for="name">Experiment name:</label><input id="name" name="name" type="text" class="w3-input" value="unnamed-${time}">
+                    <input type="checkbox" class="w3-radio" name="overwrite" id="chkoverwrite" value="True">
+                   <label for="chkoverwrite">Overwrite</label>
+               </div>
+               <div class="w3-section">
+                    <button class="w3-theme w3-round">Train</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
