@@ -1,7 +1,6 @@
 # TODO
 
-- 
-- Run computations in separate processes
+- Computations
   - Logging/report state of computations
   - Stop computations
 - Definition of computations
