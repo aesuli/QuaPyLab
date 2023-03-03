@@ -33,6 +33,18 @@ ${parent.head()}
         $("input[id^='"+group+"'").attr('checked', checked);
     }
 
+    function run_training(event) {
+        event.preventDefault();
+        $.post("run_training", $("#trainconf").serialize())
+            .done(function(msg) {
+                custom_message(msg);
+            })
+            .fail(function(msg) {
+                custom_error("<pre>"+JSON.stringify(msg.responseJSON, null, 2)+"</pre>");
+            });;
+        return false;
+    }
+
     $( document ).ready(function() {
 
         $('#chkdatasethp').attr('checked', true);
@@ -58,7 +70,7 @@ ${parent.head()}
         <div class="w3-container w3-theme">
             <h4>Train quantifiers</h4>
         </div>
-        <form action="run_training">
+        <form onsubmit="return run_training(event)" id="trainconf">
             <div class="w3-container">
                <div class="w3-section">
                     Datasets:

@@ -1,6 +1,7 @@
 import json
-import dill
 from pathlib import Path
+
+import dill
 
 from quapylab.db.quapydb import QuaPyDB
 
@@ -24,6 +25,10 @@ class FileDB(QuaPyDB):
         if not self._model_dir.exists():
             self._model_dir.mkdir(parents=True, exist_ok=True)
 
+        self._job_dir = self._path / 'jobs'
+        if not self._job_dir.exists():
+            self._job_dir.mkdir(parents=True, exist_ok=True)
+
         users_file = self._path / 'user.json'
         if not users_file.exists() or users_file.stat().st_size == 0:
             with open(users_file, mode='wt', encoding='utf-8') as outputfile:
@@ -39,7 +44,10 @@ class FileDB(QuaPyDB):
         return False
 
     def validate(self, username: str, password: str) -> bool:
-        return self._users[username] == password
+        try:
+            return self._users[username] == password
+        except KeyError:
+            return False
 
     def get_dataset_names(self):
         datasets = super().get_dataset_names()
@@ -74,3 +82,22 @@ class FileDB(QuaPyDB):
                     if modeldir.is_dir():
                         quantifier_names[expdir.name] = modeldir.name
         return quantifier_names
+
+    def add_job(self, name, function, kwargs):
+        try:
+            with open(self._job_dir / name, mode='wb') as outputfile:
+                dill.dump((name, function, kwargs), outputfile)
+        except Exception as e:
+            e
+
+    def pop_pending_job(self):
+        try:
+            job_filename = next(self._job_dir.glob('*'))
+            if job_filename is not None:
+                with open(job_filename, mode='rb') as inputfile:
+                    job_name, function, kwargs = dill.load(inputfile)
+                job_filename.unlink(True)
+                return job_name, function, kwargs
+            return None, None, None
+        except StopIteration:
+            return None, None, None

@@ -15,7 +15,7 @@
             window.location.href = '${mount_dir}/';
         })
         .fail(function(errMsg) {
-            $('#msg').text(errMsg.responseText);
+            $('#msg').text(errMsg.responseJSON.status_details.description);
         });
         return false;
     };

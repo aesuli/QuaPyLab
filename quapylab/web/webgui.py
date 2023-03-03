@@ -1,12 +1,14 @@
+import datetime
 import os
 
 import cherrypy
+import shortuuid
 from mako.lookup import TemplateLookup
 
 import quapylab
 from quapylab.db.quapydb import QuaPyDB
 
-from quapylab.experiments import train, SKIP_NAME
+from quapylab.services.experiments import train, SKIP_NAME
 from quapylab.web import media
 from quapylab.web.auth import USER_SESSION_KEY
 
@@ -54,12 +56,13 @@ class QuaPyLab:
             username = ""
         else:
             if password is None:
-                error_message = 'Wrong credentials'
+                raise cherrypy.HTTPError(401, 'Wrong credentials')
             else:
                 if self._db.validate(username, password):
                     cherrypy.session[USER_SESSION_KEY] = cherrypy.request.login = username
+                    raise cherrypy.HTTPRedirect('')
                 else:
-                    error_message = 'Wrong credentials'
+                    raise cherrypy.HTTPError(401, 'Wrong credentials')
         template = self._lookup.get_template('login.html')
         if error_message is None:
             error_message = ""
@@ -87,9 +90,68 @@ class QuaPyLab:
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def run_training(self, *args, **kwargs):
-        kwargs['db'] = self._db
-        output = train(**kwargs)
-        return output
+        dataset_names = kwargs['dataset']
+        if type(dataset_names) == str:
+            dataset_names = [dataset_names]
+
+        quantifier_names = kwargs['quantifier']
+        if type(quantifier_names) == str:
+            quantifier_names = [quantifier_names]
+
+        classifier_names = kwargs.get('classifier', [SKIP_NAME])
+        if type(classifier_names) == str:
+            classifier_names = [classifier_names]
+
+        calibration_names = kwargs.get('calibration', [SKIP_NAME])
+        if type(calibration_names) == str:
+            calibration_names = [calibration_names]
+
+        metaquantifier_names = kwargs['metaquatifier']
+        if type(metaquantifier_names) == str:
+            metaquantifier_names = [metaquantifier_names]
+
+        selection_names = kwargs['selection']
+        if type(selection_names) == str:
+            selection_names = [selection_names]
+
+        protocol_names = kwargs.get('protocol', [SKIP_NAME])
+        if type(protocol_names) == str:
+            protocol_names = [protocol_names]
+
+        name = kwargs['name']
+
+        overwrite = 'overwrite' in kwargs
+
+        job_count = 0
+        for dataset_name in dataset_names:
+            for metaquantifier_name in metaquantifier_names:
+                for selection_name in selection_names:
+                    if selection_name == SKIP_NAME:
+                        loop_protocol_names = [SKIP_NAME]
+                    else:
+                        loop_protocol_names = protocol_names
+                    for protocol_name in loop_protocol_names:
+                        for quantifier_name in quantifier_names:
+                            if quantifier_name == 'MaximumLikelihoodPrevalenceEstimation':
+                                loop_classifier_names = [SKIP_NAME]
+                                loop_calibration_names = [SKIP_NAME]
+                            else:
+                                loop_classifier_names = classifier_names
+                                loop_calibration_names = calibration_names
+                            for classifier_name in loop_classifier_names:
+                                for calibration_name in loop_calibration_names:
+                                    kwargs = {'name':name, 'dataset_name':dataset_name,
+                                              'metaquantifier_name':metaquantifier_name,
+                                              'selection_name':selection_name, 'protocol_name':protocol_name,
+                                              'quantifier_name':quantifier_name,'classifier_name':classifier_name,
+                                              'calibration_name': calibration_name, 'overwrite': overwrite}
+                                    job_name = str(datetime.datetime.now())
+                                    job_name = f'{job_name[:job_name.rfind(".")]}_{shortuuid.uuid()}'
+                                    job_name = job_name.replace(' ', '_')
+                                    job_name = job_name.replace(':', '-')
+                                    self._db.add_job(job_name,train,kwargs)
+                                    job_count += 1
+        return f'Created {job_count} training jobs'
 
     @cherrypy.expose
     def about(self):

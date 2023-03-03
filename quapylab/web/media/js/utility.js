@@ -21,7 +21,7 @@ function custom_error(output_msg, title_msg)
     if (!output_msg)
         output_msg = 'No Message to Display.';
 
-    custom_message(output_msg, title_msg, 'orange')
+    custom_message(output_msg, title_msg, 'red')
 }
 
 function custom_alert(output_msg, title_msg)
@@ -32,7 +32,7 @@ function custom_alert(output_msg, title_msg)
     if (!output_msg)
         output_msg = 'No Message to Display.';
 
-    custom_message(output_msg, title_msg, 'yellow')
+    custom_message(output_msg, title_msg, 'orange')
 }
 
 delay = (function(){

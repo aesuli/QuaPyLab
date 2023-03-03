@@ -1,4 +1,7 @@
+import html
+import json
 import logging
+import os
 import sys
 
 import cherrypy
@@ -10,10 +13,20 @@ from quapylab.db.filedb import FileDB
 from quapylab.util import get_quapylab_home
 from quapylab.web import QuaPyLab
 from quapylab.web.auth import any_of, redirect, logged_in, enable_controller_service
+from quapylab.services.background_processor import BackgroundProcessor, setup_background_processor_log
 
+def jsonify_error(status, message, traceback, version):
+    response = cherrypy.response
+    response.headers['Content-Type'] = 'application/json'
+    return json.dumps({'status': 'Failure', 'status_details': {
+        'message': status,
+        'description': message,
+        'traceback': traceback.split('\n'),
+        'version': version
+    }})
 
 def main():
-    logging.basicConfig(encoding='utf-8', level=logging.INFO)
+    logging.basicConfig(encoding='utf-8', stream=sys.stderr, level=logging.INFO)
     parser = ArgParser()
     parser.add_argument('--name', help='name of the application instance', type=str, default='QuaPyLab')
     parser.add_argument('--host', help='host server address', type=str, default='127.0.0.1')
@@ -26,18 +39,21 @@ def main():
     quapy.environ['SVMPERF_HOME'] = args.svmperf_dir
 
     with FileDB(args.data_dir) as db,\
-            QuaPyLab(args.name, db) as main_app:
+            QuaPyLab(args.name, db) as main_app,\
+            BackgroundProcessor(args.data_dir, os.cpu_count()//2, initializer=setup_background_processor_log) as bp:
 
         cherrypy.server.socket_host = args.host
         cherrypy.server.socket_port = args.port
 
         conf_main_app = {
             '/': {
+                'error_page.default': jsonify_error,
                 'tools.sessions.on': True,
                 'tools.auth.on': True,
                 'tools.auth.require': [any_of(logged_in(), redirect(args.main_app_path + 'login'))],
             },
             '/login': {
+                'error_page.default': jsonify_error,
                 'tools.auth.require': [],
             },
         }
@@ -51,6 +67,9 @@ def main():
         signal_handler.subscribe()
 
         enable_controller_service()
+
+        bp.start()
+        cherrypy.engine.subscribe('stop', bp.stop)
 
         cherrypy.engine.start()
         cherrypy.engine.block()

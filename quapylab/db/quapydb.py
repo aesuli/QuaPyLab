@@ -70,3 +70,11 @@ class QuaPyDB(ABC):
     @abstractmethod
     def get_quantifier_names(self):
         pass
+
+    @abstractmethod
+    def add_job(self, name, function, kwargs):
+        pass
+
+    @abstractmethod
+    def pop_pending_job(self):
+        pass
