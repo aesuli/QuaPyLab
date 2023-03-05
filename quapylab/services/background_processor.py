@@ -37,6 +37,7 @@ process_db = None
 def job_launcher(job_name, f, **kwargs):
     global process_db
     try:
+        kwargs['job_name'] = job_name
         f(db=process_db, **kwargs)
     except Exception as e:
         return JobError(job_name, e, traceback.format_exc())
@@ -85,8 +86,8 @@ class BackgroundProcessor(Process):
                 try:
                     cherrypy.log(f'Starting {job_name}: {function} ({kwargs})', severity=logging.INFO)
                     pool.apply_async(partial(job_launcher, job_name, function), kwds=kwargs,
-                                             callback=partial(self._release, db, job_name, True),
-                                             error_callback=partial(self._release, db, job_name, False))
+                                     callback=partial(self._release, db, job_name, True),
+                                     error_callback=partial(self._release, db, job_name, False))
                 except Exception as e:
                     self._semaphore.release()
                     cherrypy.log(f'Error on job {job_name}:\nException: ' + str(e),
@@ -107,12 +108,14 @@ class BackgroundProcessor(Process):
         self.stop()
         return False
 
-    def _release(self, db, name, success, return_value=None):
+    def _release(self, db, job_name, success, return_value=None):
         try:
-            if not success:
-                cherrypy.log(return_value, severity=logging.ERROR)
+            if not success or isinstance(return_value, JobError):
+                cherrypy.log(str(return_value), severity=logging.ERROR)
+                db.job_error(job_name)
             else:
-                cherrypy.log(f'Completed {name}', severity=logging.INFO)
+                cherrypy.log(f'Completed {job_name}', severity=logging.INFO)
+                db.job_done(job_name)
             if hasattr(return_value, 're_raise'):
                 return_value.re_raise()
         finally:

@@ -2,12 +2,22 @@ import json
 from pathlib import Path
 
 import dill
+import shortuuid
 
 from quapylab.db.quapydb import QuaPyDB
+from quapylab.util import datetime_now_to_filename
 
 USER_DATASET_GROUP = 'User data'
 
 MODEL_FILE = 'model.dill'
+
+
+class JobStatus:
+    creating = '.creating'
+    pending = '.pending'
+    running = '.running'
+    done = '.done'
+    error = '.error'
 
 
 class FileDB(QuaPyDB):
@@ -83,21 +93,44 @@ class FileDB(QuaPyDB):
                         quantifier_names[expdir.name] = modeldir.name
         return quantifier_names
 
-    def add_job(self, name, function, kwargs):
+
+    def add_job(self, function, kwargs):
+        job_name = f'{datetime_now_to_filename()}.{shortuuid.uuid()}'
         try:
-            with open(self._job_dir / name, mode='wb') as outputfile:
-                dill.dump((name, function, kwargs), outputfile)
+            jobfile = self._job_dir / (job_name + JobStatus.creating)
+            with open(jobfile, mode='wb') as outputfile:
+                dill.dump((function, kwargs), outputfile)
+            jobfile.rename(self._job_dir / (job_name + JobStatus.pending))
         except Exception as e:
             e
 
     def pop_pending_job(self):
         try:
-            job_filename = next(self._job_dir.glob('*'))
+            job_filename = next(self._job_dir.glob(f'*{JobStatus.pending}'))
             if job_filename is not None:
-                with open(job_filename, mode='rb') as inputfile:
-                    job_name, function, kwargs = dill.load(inputfile)
-                job_filename.unlink(True)
+                job_name = job_filename.name[:-len(JobStatus.pending)]
+                new_filename = self._job_dir / f'{job_name}.{datetime_now_to_filename()}{JobStatus.running}'
+                job_filename.rename(new_filename)
+                with open(new_filename, mode='rb') as inputfile:
+                    function, kwargs = dill.load(inputfile)
                 return job_name, function, kwargs
             return None, None, None
         except StopIteration:
             return None, None, None
+
+    def job_done(self, job_name):
+        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_name}*{JobStatus.running}'))
+        running_job_name = job_filename.name[:-len(JobStatus.running)]
+        new_filename = self._job_dir / f'{running_job_name}.{datetime_now_to_filename()}{JobStatus.done}'
+        job_filename.rename(new_filename)
+
+    def job_error(self, job_name):
+        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_name}*{JobStatus.running}'))
+        running_job_name = job_filename.name[:-len(JobStatus.running)]
+        new_filename = self._job_dir / f'{running_job_name}.{datetime_now_to_filename()}{JobStatus.error}'
+        job_filename.rename(new_filename)
+
+    def log_error(self, job_name, msg):
+        with open(self._job_dir / f'{job_name}.error.txt', mode='wt',
+                  encoding='utf-8') as outputfile:
+            outputfile.write(msg)

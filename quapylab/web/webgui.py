@@ -1,8 +1,6 @@
-import datetime
 import os
 
 import cherrypy
-import shortuuid
 from mako.lookup import TemplateLookup
 
 import quapylab
@@ -145,11 +143,7 @@ class QuaPyLab:
                                               'selection_name':selection_name, 'protocol_name':protocol_name,
                                               'quantifier_name':quantifier_name,'classifier_name':classifier_name,
                                               'calibration_name': calibration_name, 'overwrite': overwrite}
-                                    job_name = str(datetime.datetime.now())
-                                    job_name = f'{job_name[:job_name.rfind(".")]}_{shortuuid.uuid()}'
-                                    job_name = job_name.replace(' ', '_')
-                                    job_name = job_name.replace(':', '-')
-                                    self._db.add_job(job_name,train,kwargs)
+                                    self._db.add_job(train,kwargs)
                                     job_count += 1
         return f'Created {job_count} training jobs'
 

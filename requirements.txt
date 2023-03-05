@@ -4,3 +4,4 @@ QuaPy>=0.1.7
 Mako>=1.2.4
 dill>=0.3.6
 scikit-learn>=1.2.1
+shortuuid>=1.0.11

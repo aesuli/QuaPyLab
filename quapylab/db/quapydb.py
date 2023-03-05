@@ -72,9 +72,21 @@ class QuaPyDB(ABC):
         pass
 
     @abstractmethod
-    def add_job(self, name, function, kwargs):
+    def add_job(self, function, kwargs):
         pass
 
     @abstractmethod
     def pop_pending_job(self):
+        pass
+
+    @abstractmethod
+    def job_done(self, job_name):
+        pass
+
+    @abstractmethod
+    def job_error(self, job_name):
+        pass
+
+    @abstractmethod
+    def log_error(self, job_name, msg):
         pass
