@@ -25,7 +25,7 @@ from sklearn.svm import LinearSVC
 SKIP_NAME = 'None'
 
 
-def train(db, job_name, name, dataset_name, metaquantifier_name, selection_name, protocol_name, quantifier_name, classifier_name,
+def train(db, job_id, name, dataset_name, metaquantifier_name, selection_name, protocol_name, quantifier_name, classifier_name,
           calibration_name, overwrite):
     # TODO sample size as parameter?
     if quapy.environ['SAMPLE_SIZE'] is None:
@@ -34,7 +34,7 @@ def train(db, job_name, name, dataset_name, metaquantifier_name, selection_name,
     dataset_name, dataset = get_dataset(dataset_name)
     quantifier_name, quantifier = get_quantifier(dataset, quantifier_name, classifier_name, calibration_name,
                                                  metaquantifier_name, selection_name, protocol_name)
-    logging.info(f'{job_name}: Fitting experiment {name}, dataset {dataset_name}, quantifier {quantifier_name}')
+    logging.info(f'{job_id}: Fitting experiment {name}, dataset {dataset_name}, quantifier {quantifier_name}')
     try:
         if hasattr(dataset, 'Xy'):
             quantifier.fit(dataset)
@@ -45,7 +45,7 @@ def train(db, job_name, name, dataset_name, metaquantifier_name, selection_name,
     except Exception as e:
         # TODO manage errors from unsupported configurations or from failed computation
         logging.exception(f'Error while fitting {name}, dataset {dataset_name}, quantifier {quantifier_name}')
-        db.log_error(job_name, f'{e}\n{traceback.format_exc()}')
+        db.log_error(job_id, f'{e}\n{traceback.format_exc()}')
         raise
     else:
         logging.info(

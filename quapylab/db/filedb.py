@@ -4,20 +4,12 @@ from pathlib import Path
 import dill
 import shortuuid
 
-from quapylab.db.quapydb import QuaPyDB
+from quapylab.db.quapydb import QuaPyDB, JobStatus
 from quapylab.util import datetime_now_to_filename
 
 USER_DATASET_GROUP = 'User data'
 
 MODEL_FILE = 'model.dill'
-
-
-class JobStatus:
-    creating = '.creating'
-    pending = '.pending'
-    running = '.running'
-    done = '.done'
-    error = '.error'
 
 
 class FileDB(QuaPyDB):
@@ -38,6 +30,10 @@ class FileDB(QuaPyDB):
         self._job_dir = self._path / 'jobs'
         if not self._job_dir.exists():
             self._job_dir.mkdir(parents=True, exist_ok=True)
+
+        self._log_dir = self._path / 'logs'
+        if not self._log_dir.exists():
+            self._log_dir.mkdir(parents=True, exist_ok=True)
 
         users_file = self._path / 'user.json'
         if not users_file.exists() or users_file.stat().st_size == 0:
@@ -93,44 +89,88 @@ class FileDB(QuaPyDB):
                         quantifier_names[expdir.name] = modeldir.name
         return quantifier_names
 
-
     def add_job(self, function, kwargs):
-        job_name = f'{datetime_now_to_filename()}.{shortuuid.uuid()}'
+        job_id = f'{datetime_now_to_filename()}.{shortuuid.uuid()}'
         try:
-            jobfile = self._job_dir / (job_name + JobStatus.creating)
+            jobfile = self._job_dir / (f'{job_id}.{JobStatus.creating.value}')
             with open(jobfile, mode='wb') as outputfile:
                 dill.dump((function, kwargs), outputfile)
-            jobfile.rename(self._job_dir / (job_name + JobStatus.pending))
+            jobfile.rename(self._job_dir / (f'{job_id}.{JobStatus.pending.value}'))
         except Exception as e:
             e
 
     def pop_pending_job(self):
         try:
-            job_filename = next(self._job_dir.glob(f'*{JobStatus.pending}'))
+            job_filename = next(self._job_dir.glob(f'*.{JobStatus.pending.value}'))
             if job_filename is not None:
-                job_name = job_filename.name[:-len(JobStatus.pending)]
-                new_filename = self._job_dir / f'{job_name}.{datetime_now_to_filename()}{JobStatus.running}'
+                job_id = job_filename.name[:-len(JobStatus.pending.value) - 1]
+                new_filename = self._job_dir / f'{job_id}.{datetime_now_to_filename()}.{JobStatus.running.value}'
                 job_filename.rename(new_filename)
                 with open(new_filename, mode='rb') as inputfile:
                     function, kwargs = dill.load(inputfile)
-                return job_name, function, kwargs
+                return job_id, function, kwargs
             return None, None, None
         except StopIteration:
             return None, None, None
 
-    def job_done(self, job_name):
-        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_name}*{JobStatus.running}'))
-        running_job_name = job_filename.name[:-len(JobStatus.running)]
-        new_filename = self._job_dir / f'{running_job_name}.{datetime_now_to_filename()}{JobStatus.done}'
+    def job_done(self, job_id):
+        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_id}*'))
+        new_filename = self._job_dir / f'{job_filename.name[:job_filename.name.rfind(".")]}.{datetime_now_to_filename()}.{JobStatus.done.value}'
         job_filename.rename(new_filename)
 
-    def job_error(self, job_name):
-        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_name}*{JobStatus.running}'))
-        running_job_name = job_filename.name[:-len(JobStatus.running)]
-        new_filename = self._job_dir / f'{running_job_name}.{datetime_now_to_filename()}{JobStatus.error}'
+    def job_error(self, job_id):
+        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_id}*'))
+        new_filename = self._job_dir / f'{job_filename.name[:job_filename.name.rfind(".")]}.{datetime_now_to_filename()}.{JobStatus.error.value}'
         job_filename.rename(new_filename)
 
-    def log_error(self, job_name, msg):
-        with open(self._job_dir / f'{job_name}.error.txt', mode='wt',
-                  encoding='utf-8') as outputfile:
+    def log_error(self, job_id, msg, append=True):
+        if append:
+            mode = 'at'
+        else:
+            mode = 'wt'
+        with open(self._log_dir / f'{job_id}.error_log.txt', mode=mode, encoding='utf-8') as outputfile:
             outputfile.write(msg)
+
+    def job_list(self):
+        return [job_file.name[:job_file.name.find('.',job_file.name.find('.')+1)] for job_file in self._job_dir.iterdir()]
+
+    def job_info(self, job_id):
+        job_filename = self._job_dir / next(self._job_dir.glob(f'{job_id}*'))
+        fields = job_filename.name.split('.')
+        status = fields[-1]
+        created = fields[0]
+        if len(fields) > 3:
+            started = fields[2]
+        else:
+            started = 'n/a'
+        if len(fields) > 4:
+            completed = fields[3]
+        else:
+            completed = 'n/a'
+        with open(job_filename, mode='rb') as inputfile:
+            function, kwargs = dill.load(inputfile)
+        return {'job_id': job_id, 'function': function.__name__, 'arguments': str(kwargs), 'status': status, 'created': created, 'started': started, 'completed': completed}
+
+    def job_count(self):
+        return len(list(self._job_dir.iterdir()))
+
+    def job_delete(self, job_id):
+        filename = next(self._job_dir.glob(f'{job_id}*'))
+        filename.unlink(missing_ok=True)
+        error_log_file = self._log_dir / f'{job_id}.error_log.txt'
+        error_log_file.unlink(missing_ok=True)
+
+    def job_rerun(self, job_id):
+        filename = next(self._job_dir.glob(f'{job_id}*'))
+        pending_filename = f'{filename.name[:filename.name.rfind(".")]}.{JobStatus.pending.value}'
+        error_log_file = self._log_dir / f'{job_id}.error_log.txt'
+        error_log_file.unlink(missing_ok=True)
+        filename.rename(self._job_dir/pending_filename)
+
+    def job_get_error_log(self, job_id):
+        error_log_file =self._log_dir / f'{job_id}.error_log.txt'
+        if not error_log_file.exists():
+            return ''
+        else:
+            with open(error_log_file, mode='rt', encoding='utf-8') as inputfile:
+                return inputfile.read()

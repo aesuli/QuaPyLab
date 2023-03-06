@@ -8,7 +8,7 @@ def get_quapylab_home():
     return home
 
 def datetime_now_to_filename():
-    job_name = str(datetime.datetime.now())
-    job_name = job_name[:job_name.rfind(".")]
-    job_name = job_name.replace(' ', '_')
-    return job_name.replace(':', '-')
+    job_id = str(datetime.datetime.now())
+    job_id = job_id[:job_id.rfind(".")]
+    job_id = job_id.replace(' ', '_')
+    return job_id.replace(':', '-')

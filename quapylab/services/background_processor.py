@@ -34,13 +34,13 @@ class JobError:
 process_db = None
 
 
-def job_launcher(job_name, f, **kwargs):
+def job_launcher(job_id, f, **kwargs):
     global process_db
     try:
-        kwargs['job_name'] = job_name
+        kwargs['job_id'] = job_id
         f(db=process_db, **kwargs)
     except Exception as e:
-        return JobError(job_name, e, traceback.format_exc())
+        return JobError(job_id, e, traceback.format_exc())
 
 
 def bp_pool_initializer(db_connection_string, initializer, *initargs):
@@ -71,26 +71,26 @@ class BackgroundProcessor(Process):
             cherrypy.log('BackgroundProcessor: started', severity=logging.INFO)
             while not self._stop_event.is_set():
                 try:
-                    job_name, function, kwargs = db.pop_pending_job()
+                    job_id, function, kwargs = db.pop_pending_job()
                 except Exception as e:
                     cherrypy.log(
                         f'Error fetching next job \nException: {e}',
                         severity=logging.ERROR)
-                    job_name = None
-                if job_name is None:
+                    job_id = None
+                if job_id is None:
                     try:
                         sleep(LOOP_WAIT)
                     finally:
                         continue
                 self._semaphore.acquire()
                 try:
-                    cherrypy.log(f'Starting {job_name}: {function} ({kwargs})', severity=logging.INFO)
-                    pool.apply_async(partial(job_launcher, job_name, function), kwds=kwargs,
-                                     callback=partial(self._release, db, job_name, True),
-                                     error_callback=partial(self._release, db, job_name, False))
+                    cherrypy.log(f'Starting {job_id}: {function} ({kwargs})', severity=logging.INFO)
+                    pool.apply_async(partial(job_launcher, job_id, function), kwds=kwargs,
+                                     callback=partial(self._release, db, job_id, True),
+                                     error_callback=partial(self._release, db, job_id, False))
                 except Exception as e:
                     self._semaphore.release()
-                    cherrypy.log(f'Error on job {job_name}:\nException: ' + str(e),
+                    cherrypy.log(f'Error on job {job_id}:\nException: ' + str(e),
                                  severity=logging.ERROR)
             pool.close()
             pool.join()
@@ -108,14 +108,14 @@ class BackgroundProcessor(Process):
         self.stop()
         return False
 
-    def _release(self, db, job_name, success, return_value=None):
+    def _release(self, db, job_id, success, return_value=None):
         try:
             if not success or isinstance(return_value, JobError):
                 cherrypy.log(str(return_value), severity=logging.ERROR)
-                db.job_error(job_name)
+                db.job_error(job_id)
             else:
-                cherrypy.log(f'Completed {job_name}', severity=logging.INFO)
-                db.job_done(job_name)
+                cherrypy.log(f'Completed {job_id}', severity=logging.INFO)
+                db.job_done(job_id)
             if hasattr(return_value, 're_raise'):
                 return_value.re_raise()
         finally:

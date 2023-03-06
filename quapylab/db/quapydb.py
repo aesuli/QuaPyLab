@@ -1,8 +1,17 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 
 from quapy import method
 from quapy.classification.calibration import RecalibratedProbabilisticClassifierBase
 from quapy.data import datasets
+
+
+class JobStatus(Enum):
+    creating = 'creating'
+    pending = 'pending'
+    running = 'running'
+    done = 'done'
+    error = 'error'
 
 
 class QuaPyDB(ABC):
@@ -60,7 +69,7 @@ class QuaPyDB(ABC):
         return ["APP", "NPP", "UPP"]
 
     @abstractmethod
-    def set_quantifier(self, quantifier, experiment_name, model_name, overwrite = False):
+    def set_quantifier(self, quantifier, experiment_name, model_name, overwrite=False):
         pass
 
     @abstractmethod
@@ -80,13 +89,37 @@ class QuaPyDB(ABC):
         pass
 
     @abstractmethod
-    def job_done(self, job_name):
+    def job_done(self, job_id):
         pass
 
     @abstractmethod
-    def job_error(self, job_name):
+    def job_error(self, job_id):
         pass
 
     @abstractmethod
-    def log_error(self, job_name, msg):
+    def log_error(self, job_id, msg, append=True):
+        pass
+
+    @abstractmethod
+    def job_list(self):
+        pass
+
+    @abstractmethod
+    def job_info(self, job_id):
+        pass
+
+    @abstractmethod
+    def job_count(self):
+        pass
+
+    @abstractmethod
+    def job_delete(self, job_id):
+        pass
+
+    @abstractmethod
+    def job_rerun(self, job_id):
+        pass
+
+    @abstractmethod
+    def job_get_error_log(self, job_id):
         pass

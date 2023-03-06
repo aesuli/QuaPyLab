@@ -4,8 +4,7 @@ import cherrypy
 from mako.lookup import TemplateLookup
 
 import quapylab
-from quapylab.db.quapydb import QuaPyDB
-
+from quapylab.db.quapydb import QuaPyDB, JobStatus
 from quapylab.services.experiments import train, SKIP_NAME
 from quapylab.web import media
 from quapylab.web.auth import USER_SESSION_KEY
@@ -138,14 +137,71 @@ class QuaPyLab:
                                 loop_calibration_names = calibration_names
                             for classifier_name in loop_classifier_names:
                                 for calibration_name in loop_calibration_names:
-                                    kwargs = {'name':name, 'dataset_name':dataset_name,
-                                              'metaquantifier_name':metaquantifier_name,
-                                              'selection_name':selection_name, 'protocol_name':protocol_name,
-                                              'quantifier_name':quantifier_name,'classifier_name':classifier_name,
+                                    kwargs = {'name': name, 'dataset_name': dataset_name,
+                                              'metaquantifier_name': metaquantifier_name,
+                                              'selection_name': selection_name, 'protocol_name': protocol_name,
+                                              'quantifier_name': quantifier_name, 'classifier_name': classifier_name,
                                               'calibration_name': calibration_name, 'overwrite': overwrite}
-                                    self._db.add_job(train,kwargs)
+                                    self._db.add_job(train, kwargs)
                                     job_count += 1
         return f'Created {job_count} training jobs'
+
+    @cherrypy.expose
+    def jobs(self):
+        template = self._lookup.get_template('jobs.html')
+        return template.render(**{**self._template_data, **self.session_data})
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def job_count(self):
+        return self._db.job_count()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def job_list(self, page=None, page_size=20):
+        try:
+            page = int(page)
+        except (ValueError, TypeError):
+            page = 0
+        try:
+            page_size = int(page_size)
+        except (ValueError, TypeError):
+            page_size = 0
+        job_ids = self._db.job_list()[page * page_size:(page + 1) * page_size]
+        return [self._db.job_info(job_id) for job_id in job_ids]
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def jobs_delete_done(self):
+        for job_id in self._db.job_list():
+            if self._db.job_info(job_id)['status']==JobStatus.done.value:
+                self._db.job_delete(job_id)
+        return 'ok'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def jobs_delete_all(self):
+        for job_id in self._db.job_list():
+            self._db.job_delete(job_id)
+        return 'ok'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def job_delete(self, job_id):
+        self._db.job_delete(job_id)
+        return 'ok'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def job_rerun(self, job_id):
+        self._db.job_rerun(job_id)
+        return 'ok'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def job_get_error_log(self, job_id):
+        return self._db.job_get_error_log(job_id)
+
 
     @cherrypy.expose
     def about(self):

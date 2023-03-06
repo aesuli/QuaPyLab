@@ -1,7 +1,6 @@
 # TODO
 
 - Computations
-  - Report state of computations
   - Stop computations
 - Definition of computations
   - Setting the parameters of quantifiers
