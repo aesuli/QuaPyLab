@@ -1,4 +1,4 @@
-import html
+import json
 import json
 import logging
 import os
@@ -10,10 +10,11 @@ from cherrypy.process.plugins import SignalHandler
 from configargparse import ArgParser
 
 from quapylab.db.filedb import FileDB
+from quapylab.services.background_processor import BackgroundProcessor, setup_background_processor_log
 from quapylab.util import get_quapylab_home
 from quapylab.web import QuaPyLab
 from quapylab.web.auth import any_of, redirect, logged_in, enable_controller_service
-from quapylab.services.background_processor import BackgroundProcessor, setup_background_processor_log
+
 
 def jsonify_error(status, message, traceback, version):
     response = cherrypy.response
@@ -25,6 +26,7 @@ def jsonify_error(status, message, traceback, version):
         'version': version
     }})
 
+
 def main():
     logging.basicConfig(encoding='utf-8', stream=sys.stderr, level=logging.INFO)
     parser = ArgParser()
@@ -32,16 +34,16 @@ def main():
     parser.add_argument('--host', help='host server address', type=str, default='127.0.0.1')
     parser.add_argument('--port', help='host server port', type=int, default=8080)
     parser.add_argument('--main_app_path', help='server path of the web client app', type=str, default='/')
-    parser.add_argument('--data_dir', help='path to the directory with QuaPyLab data', type=str, default=get_quapylab_home())
+    parser.add_argument('--data_dir', help='path to the directory with QuaPyLab data', type=str,
+                        default=get_quapylab_home())
     parser.add_argument('--svmperf_dir', help='path to SVMPerf executable', type=str, default=get_quapylab_home())
     args = parser.parse_args(sys.argv[1:])
 
     quapy.environ['SVMPERF_HOME'] = args.svmperf_dir
 
-    with FileDB(args.data_dir) as db,\
-            QuaPyLab(args.name, db) as main_app,\
-            BackgroundProcessor(args.data_dir, os.cpu_count()//2, initializer=setup_background_processor_log) as bp:
-
+    with FileDB(args.data_dir) as db, \
+            QuaPyLab(args.name, db) as main_app, \
+            BackgroundProcessor(args.data_dir, os.cpu_count() // 2, initializer=setup_background_processor_log) as bp:
         cherrypy.server.socket_host = args.host
         cherrypy.server.socket_port = args.port
 
