@@ -1,24 +1,9 @@
 # TODO
 
-- Computations
-  - Stop computations
-- Definition of computations
-  - Setting the parameters of quantifiers
-  - Setting the parameters of classifiers used by quantifiers
-  - Definition of grid of parameters for model selection
-  - Definition of evaluation measures to be optimized
-  - How to manage incompatible configurations?
-  - Selection of splits of datasets
-  - Handling the different types of data
-    - Preprocessing/indexing of text
-    - Preprocessing of numerical data (e.g. normalization, scaling...)
 - Upload of data
+  - Automatic recognition of data formats
 - Applying trained models to new data
 - Reports of computations
   - training
   - validation
   - test
-- Allow user-defined methods?
-  - What kind?
-  - How to import code?
-  - Security issues

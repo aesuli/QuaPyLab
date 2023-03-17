@@ -12,6 +12,7 @@ import cherrypy
 __author__ = 'Andrea Esuli'
 
 from quapylab.db.filedb import FileDB
+from quapylab.db.quapydb import QuaPyDB
 
 LOOP_WAIT = 1  # second
 
@@ -31,15 +32,26 @@ class JobError:
         return f'{self.__class__.__name__}(\'{self.name}\', \'{self.e}\')\n{self.tb}'
 
 
-process_db = None
+process_db: QuaPyDB = None
+
+
+def job_function(f):
+    covars = f.__code__.co_varnames
+    must_have = ['db', 'job_id']
+    for arg_name in must_have:
+        if arg_name not in covars:
+            raise AttributeError(f'Function must have a {arg_name} argument')
+    return f
 
 
 def job_launcher(job_id, f, **kwargs):
     global process_db
     try:
         kwargs['job_id'] = job_id
-        f(db=process_db, **kwargs)
+        kwargs['db'] = process_db
+        f(**kwargs)
     except Exception as e:
+        process_db.log_job_error(job_id, f'{e}\n{traceback.format_exc()}')
         return JobError(job_id, e, traceback.format_exc())
 
 
@@ -112,10 +124,10 @@ class BackgroundProcessor(Process):
         try:
             if not success or isinstance(return_value, JobError):
                 cherrypy.log(str(return_value), severity=logging.ERROR)
-                db.job_error(job_id)
+                db.set_job_failed(job_id)
             else:
                 cherrypy.log(f'Completed {job_id}', severity=logging.INFO)
-                db.job_done(job_id)
+                db.set_job_done(job_id)
             if hasattr(return_value, 're_raise'):
                 return_value.re_raise()
         finally:

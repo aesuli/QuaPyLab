@@ -25,7 +25,7 @@ ${parent.head()}
         var count = parseInt($(pagination_div.children()[2]).val())
         await $.ajax({
             type:'POST',
-            url:'job_count',
+            url:'get_job_count',
             dataType: 'json'})
         .done(function(msg) {
             count = parseInt(msg);
@@ -38,7 +38,7 @@ ${parent.head()}
         });
         $.ajax({
             type:'POST',
-            url:'job_list',
+            url:'get_job_list',
             data: { page : parseInt($(pagination_div.children()[0]).val())-1, page_size :$(pagination_div.children()[2]).val()},
             dataType: 'json'})
         .done( function(msg) {
@@ -123,7 +123,7 @@ ${parent.head()}
                                 return function() {
                                     $.ajax({
                                         type:'POST',
-                                        url:'job_get_error_log/'+the_name })
+                                        url:'get_job_error_log/'+the_name })
                                     .done(function(msg) {
                                         custom_alert(msg);
                                     })
@@ -167,7 +167,7 @@ ${parent.head()}
         document.getElementById('delete_all_job_done_button_wait').style.display='block';
         $.ajax({
             type:'POST',
-            url:'jobs_delete_done' })
+            url:'delete_jobs_done' })
         .done(function() {
             document.getElementById('dia_delete_all_job_done').style.display='none';
             document.getElementById('delete_all_job_done_button').style.display='block';
@@ -187,7 +187,7 @@ ${parent.head()}
         document.getElementById('delete_all_job_button_wait').style.display='block';
         $.ajax({
             type:'POST',
-            url:'jobs_delete_all' })
+            url:'delete_jobs_all' })
         .done(function() {
             document.getElementById('dia_delete_all_job').style.display='none';
             document.getElementById('delete_all_job_button').style.display='block';
@@ -208,7 +208,7 @@ ${parent.head()}
         var job = $("#del\\_from").val();
         $.ajax({
             type:'POST',
-            url:'job_delete/'+job })
+            url:'delete_job/'+job })
         .done(function() {
             document.getElementById('dia_delete_job').style.display='none';
             document.getElementById('delete_job_button').style.display='block';
@@ -229,7 +229,7 @@ ${parent.head()}
         var job = $("#rerun\\_from").val();
         $.ajax({
             type:'POST',
-            url:'job_rerun/'+job })
+            url:'rerun_job/'+job })
         .done(function() {
             document.getElementById('dia_rerun_job').style.display='none';
             document.getElementById('rerun_job_button').style.display='block';

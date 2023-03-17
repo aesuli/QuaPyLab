@@ -5,7 +5,7 @@ from mako.lookup import TemplateLookup
 
 import quapylab
 from quapylab.db.quapydb import QuaPyDB, JobStatus
-from quapylab.services.experiments import train, SKIP_NAME
+from quapylab.services.experiments import train_quantifier
 from quapylab.web import media
 from quapylab.web.auth import USER_SESSION_KEY
 
@@ -18,7 +18,6 @@ class QuaPyLab:
         self._template_data = {'name': self._name,
                                'version': self.version(),
                                'db': self._db,
-                               'SKIP_NAME': SKIP_NAME,
                                }
         self._lookup = TemplateLookup(os.path.join(self._media_dir, 'template'), input_encoding='utf-8',
                                       output_encoding='utf-8')
@@ -85,80 +84,27 @@ class QuaPyLab:
         return template.render(**{**self._template_data, **self.session_data})
 
     @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def run_training(self, *args, **kwargs):
-        dataset_names = kwargs['dataset']
-        if type(dataset_names) == str:
-            dataset_names = [dataset_names]
-
-        quantifier_names = kwargs['quantifier']
-        if type(quantifier_names) == str:
-            quantifier_names = [quantifier_names]
-
-        classifier_names = kwargs.get('classifier', [SKIP_NAME])
-        if type(classifier_names) == str:
-            classifier_names = [classifier_names]
-
-        calibration_names = kwargs.get('calibration', [SKIP_NAME])
-        if type(calibration_names) == str:
-            calibration_names = [calibration_names]
-
-        metaquantifier_names = kwargs['metaquatifier']
-        if type(metaquantifier_names) == str:
-            metaquantifier_names = [metaquantifier_names]
-
-        selection_names = kwargs['selection']
-        if type(selection_names) == str:
-            selection_names = [selection_names]
-
-        protocol_names = kwargs.get('protocol', [SKIP_NAME])
-        if type(protocol_names) == str:
-            protocol_names = [protocol_names]
-
-        name = kwargs['name']
-
-        overwrite = 'overwrite' in kwargs
-
-        job_count = 0
-        for dataset_name in dataset_names:
-            for metaquantifier_name in metaquantifier_names:
-                for selection_name in selection_names:
-                    if selection_name == SKIP_NAME:
-                        loop_protocol_names = [SKIP_NAME]
-                    else:
-                        loop_protocol_names = protocol_names
-                    for protocol_name in loop_protocol_names:
-                        for quantifier_name in quantifier_names:
-                            if quantifier_name == 'MaximumLikelihoodPrevalenceEstimation':
-                                loop_classifier_names = [SKIP_NAME]
-                                loop_calibration_names = [SKIP_NAME]
-                            else:
-                                loop_classifier_names = classifier_names
-                                loop_calibration_names = calibration_names
-                            for classifier_name in loop_classifier_names:
-                                for calibration_name in loop_calibration_names:
-                                    kwargs = {'name': name, 'dataset_name': dataset_name,
-                                              'metaquantifier_name': metaquantifier_name,
-                                              'selection_name': selection_name, 'protocol_name': protocol_name,
-                                              'quantifier_name': quantifier_name, 'classifier_name': classifier_name,
-                                              'calibration_name': calibration_name, 'overwrite': overwrite}
-                                    self._db.add_job(train, kwargs)
-                                    job_count += 1
-        return f'Created {job_count} training jobs'
-
-    @cherrypy.expose
-    def jobs(self):
-        template = self._lookup.get_template('jobs.html')
-        return template.render(**{**self._template_data, **self.session_data})
+    def upload_dataset(self, name, file, overwrite=False):
+        if isinstance(overwrite, str):
+            if overwrite.lower() == 'false':
+                overwrite = False
+        self._db.set_dataset_from_file(name, file, overwrite)
+        self._db.create_job(train_quantifier, {'name': name, 'overwrite': overwrite})
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def job_count(self):
-        return self._db.job_count()
+    def delete_dataset(self, name):
+        self._db.delete_dataset(name)
+        return 'Ok'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def job_list(self, page=None, page_size=20):
+    def get_dataset_count(self):
+        return self._db.get_dataset_count()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def get_dataset_list(self, page=None, page_size=20):
         try:
             page = int(page)
         except (ValueError, TypeError):
@@ -167,41 +113,64 @@ class QuaPyLab:
             page_size = int(page_size)
         except (ValueError, TypeError):
             page_size = 0
-        job_ids = self._db.job_list()[page * page_size:(page + 1) * page_size]
-        return [self._db.job_info(job_id) for job_id in job_ids]
+        dataset_names = self._db.get_dataset_names()[page * page_size:(page + 1) * page_size]
+        return [self._db.get_dataset_info(dataset_name) for dataset_name in dataset_names]
+
+    @cherrypy.expose
+    def jobs(self):
+        template = self._lookup.get_template('jobs.html')
+        return template.render(**{**self._template_data, **self.session_data})
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def jobs_delete_done(self):
-        for job_id in self._db.job_list():
-            if self._db.job_info(job_id)['status']==JobStatus.done.value:
-                self._db.job_delete(job_id)
+    def get_job_count(self):
+        return self._db.get_job_count()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def get_job_list(self, page=None, page_size=20):
+        try:
+            page = int(page)
+        except (ValueError, TypeError):
+            page = 0
+        try:
+            page_size = int(page_size)
+        except (ValueError, TypeError):
+            page_size = 0
+        job_ids = self._db.get_job_ids()[page * page_size:(page + 1) * page_size]
+        return [self._db.get_job_info(job_id) for job_id in job_ids]
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def delete_jobs_done(self):
+        for job_id in self._db.get_job_ids():
+            if self._db.get_job_info(job_id)['status'] == JobStatus.done.value:
+                self._db.delete_job(job_id)
         return 'ok'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def jobs_delete_all(self):
-        for job_id in self._db.job_list():
-            self._db.job_delete(job_id)
+    def delete_jobs_all(self):
+        for job_id in self._db.get_job_ids():
+            self._db.delete_job(job_id)
         return 'ok'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def job_delete(self, job_id):
-        self._db.job_delete(job_id)
+    def delete_job(self, job_id):
+        self._db.delete_job(job_id)
         return 'ok'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def job_rerun(self, job_id):
-        self._db.job_rerun(job_id)
+    def rerun_job(self, job_id):
+        self._db.rerun_job(job_id)
         return 'ok'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def job_get_error_log(self, job_id):
-        return self._db.job_get_error_log(job_id)
-
+    def get_job_error_log(self, job_id):
+        return self._db.get_job_error_log(job_id)
 
     @cherrypy.expose
     def about(self):
