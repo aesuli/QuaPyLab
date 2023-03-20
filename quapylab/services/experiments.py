@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 
 
 @job_function
-def train_quantifier(db: QuaPyDB, job_id, name, overwrite=False):
+def train_quantifier(db: QuaPyDB, job_id, name, overwrite=False, verbose = True):
     df = db.get_dataset(name)
 
     label_column_name = get_label_column_name(df)
@@ -46,7 +46,7 @@ def train_quantifier(db: QuaPyDB, job_id, name, overwrite=False):
 
     # TODO Report on the selection process and performance measures
 
-    quantifier = EMQ(VSCalibration(LogisticRegressionCV()))
+    quantifier = EMQ(VSCalibration(LogisticRegressionCV(verbose=verbose),verbose=verbose))
 
     quantifier.fit(training_data)
 

@@ -92,7 +92,7 @@ ${parent.head()}
                                 <div class="w3-dropdown-content w3-bar-block w3-card">\
                                     <div id="rerun_button_'+sort_string+'" class="w3-bar-item w3-button">Rerun</div>\
                                     <div id="delete_button_'+sort_string+'" class="w3-bar-item w3-button">Delete</div>\
-                                    <div id="log_button_'+sort_string+'" class="w3-bar-item w3-button">Error log</div>\
+                                    <div id="log_button_'+sort_string+'" class="w3-bar-item w3-button">View log</div>\
                                 </div></td>\
                             <td class="updatable id entry_name w3-tiny">'+msg[i].job_id+'</td>\
                             <td class="updatable">'+msg[i].function+'</td>\
@@ -123,9 +123,9 @@ ${parent.head()}
                                 return function() {
                                     $.ajax({
                                         type:'POST',
-                                        url:'get_job_error_log/'+the_name })
+                                        url:'get_job_log/'+the_name })
                                     .done(function(msg) {
-                                        custom_alert(msg);
+                                        custom_message('<pre>'+msg+'</pre>','Log');
                                     })
                                     .fail(function(errMsg) {
                                         custom_error(errMsg.responseText);

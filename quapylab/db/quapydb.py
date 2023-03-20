@@ -116,10 +116,6 @@ class QuaPyDB(ABC):
         pass
 
     @abstractmethod
-    def log_job_error(self, job_id, msg, append=True):
-        pass
-
-    @abstractmethod
     def get_job_ids(self):
         pass
 
@@ -140,7 +136,11 @@ class QuaPyDB(ABC):
         pass
 
     @abstractmethod
-    def get_job_error_log(self, job_id):
+    def get_job_log_stream(self, job_id):
+        pass
+
+    @abstractmethod
+    def get_job_log_content(self, job_id):
         pass
 
     # def get_aggregative_algorithm_names(self):

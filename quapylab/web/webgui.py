@@ -169,8 +169,8 @@ class QuaPyLab:
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def get_job_error_log(self, job_id):
-        return self._db.get_job_error_log(job_id)
+    def get_job_log(self, job_id):
+        return self._db.get_job_log_content(job_id)
 
     @cherrypy.expose
     def about(self):

@@ -13,6 +13,7 @@ from quapylab.util import datetime_now_to_filename
 DATASET_EXTENSION = '.dataset'
 DATASET_INFO_EXTENSION = '.dataset_info'
 QUANTIFIER_EXTENSION = '.quantifier'
+LOG_EXTENSION = '.log'
 
 
 def check_name(name):
@@ -98,6 +99,7 @@ class FileDB(QuaPyDB):
         check_name(name)
         fullpath = self._dataset_dir / (name + DATASET_EXTENSION)
         fullpath.unlink(missing_ok=True)
+        self.delete_quantifier(name)
 
     def get_dataset_names(self):
         dataset_names = list()
@@ -200,14 +202,6 @@ class FileDB(QuaPyDB):
         new_filename = self._job_dir / f'{job_filename.name[:job_filename.name.rfind(".")]}.{datetime_now_to_filename()}.{JobStatus.error.value}'
         job_filename.rename(new_filename)
 
-    def log_job_error(self, job_id, msg, append=True):
-        if append:
-            mode = 'at'
-        else:
-            mode = 'wt'
-        with open(self._log_dir / f'{job_id}.error_log.txt', mode=mode, encoding='utf-8') as outputfile:
-            outputfile.write(msg)
-
     def get_job_ids(self):
         return [job_file.name[:job_file.name.find('.', job_file.name.find('.') + 1)] for job_file in
                 self._job_dir.iterdir()]
@@ -236,20 +230,25 @@ class FileDB(QuaPyDB):
     def delete_job(self, job_id):
         filename = next(self._job_dir.glob(f'{job_id}*'))
         filename.unlink(missing_ok=True)
-        error_log_file = self._log_dir / f'{job_id}.error_log.txt'
-        error_log_file.unlink(missing_ok=True)
+        log_file = self._log_dir / f'{job_id}{LOG_EXTENSION}'
+        log_file.unlink(missing_ok=True)
 
     def rerun_job(self, job_id):
         filename = next(self._job_dir.glob(f'{job_id}*'))
-        pending_filename = f'{filename.name[:filename.name.rfind(".")]}.{JobStatus.pending.value}'
-        error_log_file = self._log_dir / f'{job_id}.error_log.txt'
-        error_log_file.unlink(missing_ok=True)
+        job_filename = filename.name[:filename.name.find('.', filename.name.find('.') + 1)]
+        pending_filename = f'{job_filename}.{JobStatus.pending.value}'
+        log_file = self._log_dir / f'{job_filename}{LOG_EXTENSION}'
+        log_file.unlink(missing_ok=True)
         filename.rename(self._job_dir / pending_filename)
 
-    def get_job_error_log(self, job_id):
-        error_log_file = self._log_dir / f'{job_id}.error_log.txt'
-        if not error_log_file.exists():
+    def get_job_log_stream(self, job_id):
+        log_file = self._log_dir / f'{job_id}{LOG_EXTENSION}'
+        return open(log_file, mode='wt', encoding='utf-8')
+
+    def get_job_log_content(self, job_id):
+        log_file = self._log_dir / f'{job_id}{LOG_EXTENSION}'
+        if not log_file.exists():
             return ''
         else:
-            with open(error_log_file, mode='rt', encoding='utf-8') as inputfile:
+            with open(log_file, mode='rt', encoding='utf-8') as inputfile:
                 return inputfile.read()

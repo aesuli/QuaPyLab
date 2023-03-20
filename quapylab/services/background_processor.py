@@ -1,7 +1,9 @@
+import datetime
 import logging
 import multiprocessing
 import signal
 import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from functools import partial
 from multiprocessing import BoundedSemaphore, Process
 from multiprocessing.pool import Pool
@@ -46,14 +48,20 @@ def job_function(f):
 
 def job_launcher(job_id, f, **kwargs):
     global process_db
-    try:
-        kwargs['job_id'] = job_id
-        kwargs['db'] = process_db
-        f(**kwargs)
-    except Exception as e:
-        process_db.log_job_error(job_id, f'{e}\n{traceback.format_exc()}')
-        return JobError(job_id, e, traceback.format_exc())
-
+    log_stream = process_db.get_job_log_stream(job_id)
+    with redirect_stderr(log_stream), redirect_stdout(log_stream):
+        print(f'Start of job: {job_id} ({datetime.datetime.now().isoformat()})')
+        try:
+                kwargs['job_id'] = job_id
+                kwargs['db'] = process_db
+                f(**kwargs)
+        except Exception as e:
+            log_stream.write(f'Error in job: {job_id}\n{e}\n{traceback.format_exc()}')
+            return JobError(job_id, e, traceback.format_exc())
+        finally:
+            print(f'End of job: {job_id} ({datetime.datetime.now().isoformat()})')
+            log_stream.flush()
+            log_stream.close()
 
 def bp_pool_initializer(db_connection_string, initializer, *initargs):
     cherrypy.log(f'BackgroundProcessor: adding {multiprocessing.current_process().name} to pool', severity=logging.INFO)
