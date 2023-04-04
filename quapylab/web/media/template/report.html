@@ -1,0 +1,30 @@
+<%inherit file="basewithmenu.html" />
+<%block name="head">
+${parent.head()}
+<script type="text/javascript">
+    $( document ).ready(function() {
+        $("#reportTable").load("../reports/${name}_report.html");
+    });
+</script>
+</%block>
+
+<section class="w3-panel">
+    <div class="w3-panel w3-padding">
+        <div class="w3-card">
+            <div class="w3-container w3-theme w3-display-container"><h4>Results:</h4></div>
+                    <div class="w3-padding" id="reportTable"></div>
+        </div>
+    </div>
+    <div class="w3-panel w3-padding">
+        <div class="w3-card">
+            <div class="w3-container w3-theme w3-display-container"><h4>Plots:</h4></div>
+            True prevalence-predicted prevalence diagonal plot:
+            <img src="../reports/${name}_bin_diag.png" style="display:block;width:80%;margin-left:auto;margin-right:auto;"/>
+            Bias plot:
+            <img src="../reports/${name}_bin_bias.png" style="display:block;width:80%;margin-left:auto;margin-right:auto;"/>
+            Error drift plot:
+            <img src="../reports/${name}_err_drift.png" style="display:block;width:80%;margin-left:auto;margin-right:auto;"/>
+
+        </div>
+    </div>
+</section>

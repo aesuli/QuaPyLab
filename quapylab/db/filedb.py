@@ -46,6 +46,10 @@ class FileDB(QuaPyDB):
         if not self._log_dir.exists():
             self._log_dir.mkdir(parents=True, exist_ok=True)
 
+        self._report_dir = self._path / 'reports'
+        if not self._report_dir.exists():
+            self._report_dir.mkdir(parents=True, exist_ok=True)
+
         users_file = self._path / 'user.json'
         if not users_file.exists() or users_file.stat().st_size == 0:
             with open(users_file, mode='wt', encoding='utf-8') as outputfile:
@@ -252,3 +256,6 @@ class FileDB(QuaPyDB):
         else:
             with open(log_file, mode='rt', encoding='utf-8') as inputfile:
                 return inputfile.read()
+
+    def get_report_dir(self):
+        return self._report_dir

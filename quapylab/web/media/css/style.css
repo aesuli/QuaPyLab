@@ -43,3 +43,23 @@ pre {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+
+th {
+  text-align: center;
+  border-bottom: 1px solid black;
+}
+
+td {
+  padding: 5px;
+  text-align: left;
+}
+
+tbody tr:nth-child(even){
+ background: #EEE;
+}
+
+table {
+  border-collapse: collapse;
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+}

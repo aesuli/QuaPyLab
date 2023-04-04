@@ -143,6 +143,11 @@ class QuaPyDB(ABC):
     def get_job_log_content(self, job_id):
         pass
 
+    @abstractmethod
+    def get_report_dir(self):
+        pass
+
+
     # def get_aggregative_algorithm_names(self):
     #     return [m.__name__ for m in method.AGGREGATIVE_METHODS]
     #     # aggregative_algorithms = {subclass for subclass in AggregativeQuantifier.__subclasses__()}

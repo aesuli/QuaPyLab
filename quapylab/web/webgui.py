@@ -34,6 +34,11 @@ class QuaPyLab:
                  'tools.staticdir.dir': os.path.join(self._media_dir, 'js'),
                  'tools.auth.on': False,
                  },
+            '/reports':
+                {'tools.staticdir.on': True,
+                 'tools.staticdir.dir': self._db.get_report_dir(),
+                 'tools.auth.on': False,
+                 },
         }
 
     def __enter__(self):
@@ -117,6 +122,11 @@ class QuaPyLab:
         return [self._db.get_dataset_info(dataset_name) for dataset_name in dataset_names]
 
     @cherrypy.expose
+    def report(self, name):
+        template = self._lookup.get_template('report.html')
+        return template.render(**{**self._template_data, **self.session_data, **{'name': name}})
+
+    @cherrypy.expose
     def jobs(self):
         template = self._lookup.get_template('jobs.html')
         return template.render(**{**self._template_data, **self.session_data})
@@ -180,3 +190,4 @@ class QuaPyLab:
     @cherrypy.expose
     def version(self):
         return quapylab.__version__
+
