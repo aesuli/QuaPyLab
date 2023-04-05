@@ -1,7 +1,10 @@
+import os
+
 import quapy as qp
 from quapy.classification.calibration import VSCalibration
 from quapy.data import LabelledCollection
-from quapy.method.aggregative import EMQ, PACC, CC
+from quapy.method.aggregative import EMQ, PACC, CC, ACC, PCC, HDy
+from quapy.method.meta import Ensemble
 from quapy.protocol import APP
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegressionCV
@@ -17,8 +20,9 @@ except ModuleNotFoundError:
     LSTMnet = "Torch is not installed"
     CNNnet = "Torch is not installed"
 
-# TODO is it corrects to have this here?
+# TODO is it corrects to have these here?
 qp.environ["SAMPLE_SIZE"] = 100
+qp.environ["N_JOBS"] = os.cpu_count()//2
 
 
 @job_function
@@ -52,15 +56,14 @@ def train_quantifier(db: QuaPyDB, job_id, name, overwrite=False, verbose=True):
 
     def models():
         yield 'CC_SVM', CC(LinearSVC())
-        # yield 'ACC_SVM', ACC(LinearSVC())
-        # yield 'PCC_SVM', PCC(LinearSVC())
+        yield 'ACC_SVM', ACC(LinearSVC())
+        yield 'PCC_SVM', PCC(LinearSVC())
         yield 'PACC_SVM', PACC(LinearSVC())
         yield 'EMQ_SVM', EMQ(LinearSVC())
-        # yield 'CC_LR', CC(VSCalibration(LogisticRegressionCV()))
-        # yield 'ACC_LR', ACC(VSCalibration(LogisticRegressionCV()))
-        # yield 'PCC_LR', PCC(VSCalibration(LogisticRegressionCV()))
-        # yield 'PACC_LR', PACC(VSCalibration(LogisticRegressionCV()))
         yield 'EMQ_LR', EMQ(VSCalibration(LogisticRegressionCV()))
+        yield 'HDy_LR', HDy(VSCalibration(LogisticRegressionCV()))
+        yield 'CC_LR', CC(VSCalibration(LogisticRegressionCV()))
+        yield 'Ensemble_PACC_LR', Ensemble(PACC(LogisticRegressionCV()), size=30, policy='ave')
 
     quantifiers, method_names, true_prevs, estim_prevs, tr_prevs = [], [], [], [], []
 
@@ -82,6 +85,8 @@ def train_quantifier(db: QuaPyDB, job_id, name, overwrite=False, verbose=True):
 
     qp.plot.error_by_drift(method_names, true_prevs, estim_prevs, tr_prevs,
                            error_name='ae', n_bins=10, savepath=db.get_report_dir() / f'{name}_err_drift.png')
+
+    qp.plot.brokenbar_supremacy_by_drift(method_names, true_prevs, estim_prevs, tr_prevs, savepath=db.get_report_dir() / f'{name}_brokenbar_supremacy.png')
 
     best_i = -1
     best_score = float('inf')
